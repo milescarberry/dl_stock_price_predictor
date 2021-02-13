@@ -1,5 +1,7 @@
 import numpy as np
 
+from nsepy import get_history
+
 import matplotlib.pyplot as plt
 
 import pandas as pd
@@ -26,18 +28,20 @@ from tensorflow.keras.optimizers import Adam
 # Load Data :-
 
 
-company = "CRM"
+company = "IDBI"
 
 
-start  = dt.datetime(2018,2,8)                  # From what timestamp we want to start collecting the company stock data.
+start  = dt.datetime(2019,1,1)                  # From what timestamp we want to start collecting the company stock data.
 
-stop = dt.datetime(2020,2,8)                    # Till what timestamp we want to collect the company stock data.
+end = dt.datetime(2020,1,1)                    # Till what timestamp we want to collect the company stock data.
 
 
 
-data = web.DataReader(company, "yahoo", start, stop)              # "data" here points to a "dict" object. "data" is a "nested" structure. (There is a "dict" inside a "dict")
+#data = web.DataReader(company, "yahoo", start, stop)              # "data" here points to a "dict" object. "data" is a "nested" structure. (There is a "dict" inside a "dict")
 
 # We are gonna collect the company "stock" data using the yahoo_api.
+
+data = get_history(symbol = company, start = start, end = end)
 
 
 # Prepare Data :-     (Pre-Process the data before feeding it into the neural network)
@@ -56,7 +60,7 @@ scaled_data = scaler.fit_transform(data['Close'].values.reshape(-1,1))          
 
 
 
-prediction_days = 120               # How many "days" should the "model" look back to predict the "closing stock price" of the next day.
+prediction_days = 60               # How many "days" should the "model" look back to predict the "closing stock price" of the next day.
 
 
 x_train = []
@@ -99,7 +103,7 @@ x_train = x_train.reshape((x_train.shape[0], x_train.shape[1], 1))        # We a
 model = Sequential()
 
 
-model.add(LSTM(units = 200, return_sequences = True, input_shape = (x_train.shape[1], 1)))
+model.add(LSTM(units = 100, return_sequences = True, input_shape = (x_train.shape[1], 1)))
 
 model.add(Dropout(0.2))
 
@@ -107,12 +111,12 @@ model.add(Dropout(0.2))
 # LSTM layer is a recurrent layer. It's not just gonna feed forward the information. It's also gonna feed back the information into the LSTM layer itself.
 
 
-model.add((LSTM(units = 200, return_sequences = True)))
+model.add((LSTM(units = 100, return_sequences = True)))
 
 model.add(Dropout(0.2))
 
 
-model.add((LSTM(units = 200)))                    # We are not gonna "return the sequences" here.
+model.add((LSTM(units = 100)))                    # We are not gonna "return the sequences" here.
 
 model.add(Dropout(0.2))
 
@@ -127,7 +131,7 @@ model.add(Dense(units = 1))                          # This is going to be our *
 model.compile(optimizer = 'adam', loss = 'mean_squared_error')
 
 
-model.fit(x_train, y_train, epochs = 50, batch_size = 32)
+model.fit(x_train, y_train, epochs = 75, batch_size = 32)
 
 
 
@@ -138,7 +142,7 @@ model.fit(x_train, y_train, epochs = 50, batch_size = 32)
 # Load the test data :-
 
 
-test_start = dt.datetime(2020,2,8)
+test_start = dt.datetime(2020,1,1)
 
 test_end = dt.datetime.now()
 
@@ -148,9 +152,7 @@ test_end = dt.datetime.now()
 
 #test_data = web.DataReader(company, 'yahoo', test_start, test_end)
 
-
-
-test_data = web.DataReader(company, "yahoo", test_start, test_end)
+test_data = get_history(symbol = company, start = test_start, end = test_end)
 
 
 actual_closing_prices = test_data['Close'].values
@@ -207,9 +209,9 @@ predicted_closing_prices = scaler.inverse_transform(predicted_closing_prices)
 # Now, let's plot the test predictions on a graph :-
 
 
-plt.plot(actual_closing_prices, color = "blue", label = "Actual Closing Price")
+plt.plot(actual_closing_prices, color = "blue", label = "Predicted Closing Price")
 
-plt.plot(predicted_closing_prices, color = "red", label = "Predicted Closing Price")
+plt.plot(predicted_closing_prices, color = "red", label = "Actual Closing Price")
 
 plt.title(f"{company} Share Price Graph")
 
@@ -220,26 +222,3 @@ plt.ylabel("Closing Share Price")
 plt.legend()
 
 plt.show()                     # Display the graph.
-
-
-
-# Predict Next Day :-
-
-
-real_data = [model_inputs[len(model_inputs)- prediction_days+1:len(model_inputs)+1:1, 0]]
-
-
-real_data = np.array(real_data)
-
-
-real_data = real_data.reshape((real_data.shape[0], real_data.shape[1], 1))
-
-
-prediction = model.predict(real_data)
-
-prediction = scaler.inverse_transform(prediction)
-
-
-print()
-
-print(f"Prediction: {prediction}")                           # I have used "formatted string literal" here.
